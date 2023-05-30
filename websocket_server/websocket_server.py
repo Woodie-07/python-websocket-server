@@ -65,6 +65,9 @@ class API():
     def message_received(self, client, server, message):
         pass
 
+    def binary_recieved(self, client, server, message):
+        pass
+
     def set_fn_new_client(self, fn):
         self.new_client = fn
 
@@ -73,6 +76,9 @@ class API():
 
     def set_fn_message_received(self, fn):
         self.message_received = fn
+
+    def set_fn_binary_recieved(self, fn):
+        self.binary_recieved = fn
 
     def send_message(self, client, msg):
         self._unicast(client, msg)
@@ -161,6 +167,9 @@ class WebsocketServer(ThreadingMixIn, TCPServer, API):
 
     def _message_received_(self, handler, msg):
         self.message_received(self.handler_to_client(handler), self, msg)
+
+    def _binary_recieved_(self, handler, msg):
+        self.binary_recieved(self.handler_to_client(handler), self, msg)
 
     def _ping_received_(self, handler, msg):
         handler.send_pong(msg)
@@ -315,8 +324,7 @@ class WebSocketHandler(StreamRequestHandler):
             logger.warning("Continuation frames are not supported.")
             return
         elif opcode == OPCODE_BINARY:
-            logger.warning("Binary frames are not supported.")
-            return
+            opcode_handler = self.server._binary_recieved_
         elif opcode == OPCODE_TEXT:
             opcode_handler = self.server._message_received_
         elif opcode == OPCODE_PING:
@@ -338,7 +346,7 @@ class WebSocketHandler(StreamRequestHandler):
         for message_byte in self.read_bytes(payload_length):
             message_byte ^= masks[len(message_bytes) % 4]
             message_bytes.append(message_byte)
-        opcode_handler(self, message_bytes.decode('utf8'))
+        opcode_handler(self, message_bytes.decode('utf8') if opcode != OPCODE_BINARY else message_bytes)
 
     def send_message(self, message):
         self.send_text(message)
@@ -376,16 +384,15 @@ class WebSocketHandler(StreamRequestHandler):
 
         # Validate message
         if isinstance(message, bytes):
-            message = try_decode_UTF8(message)  # this is slower but ensures we have UTF-8
-            if not message:
-                logger.warning("Can\'t send message, message is not valid UTF-8")
-                return False
+            payload = message
+            opcode = OPCODE_BINARY
         elif not isinstance(message, str):
             logger.warning('Can\'t send message, message has to be a string or bytes. Got %s' % type(message))
             return False
+        else:
+            payload = encode_to_UTF8(message)
 
         header  = bytearray()
-        payload = encode_to_UTF8(message)
         payload_length = len(payload)
 
         # Normal payload
