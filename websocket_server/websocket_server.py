@@ -65,7 +65,7 @@ class API():
     def message_received(self, client, server, message):
         pass
 
-    def binary_recieved(self, client, server, message):
+    def binary_received(self, client, server, message):
         pass
 
     def set_fn_new_client(self, fn):
@@ -77,8 +77,8 @@ class API():
     def set_fn_message_received(self, fn):
         self.message_received = fn
 
-    def set_fn_binary_recieved(self, fn):
-        self.binary_recieved = fn
+    def set_fn_binary_received(self, fn):
+        self.binary_received = fn
 
     def send_message(self, client, msg):
         self._unicast(client, msg)
@@ -168,8 +168,8 @@ class WebsocketServer(ThreadingMixIn, TCPServer, API):
     def _message_received_(self, handler, msg):
         self.message_received(self.handler_to_client(handler), self, msg)
 
-    def _binary_recieved_(self, handler, msg):
-        self.binary_recieved(self.handler_to_client(handler), self, msg)
+    def _binary_received_(self, handler, msg):
+        self.binary_received(self.handler_to_client(handler), self, msg)
 
     def _ping_received_(self, handler, msg):
         handler.send_pong(msg)
@@ -324,7 +324,7 @@ class WebSocketHandler(StreamRequestHandler):
             logger.warning("Continuation frames are not supported.")
             return
         elif opcode == OPCODE_BINARY:
-            opcode_handler = self.server._binary_recieved_
+            opcode_handler = self.server._binary_received_
         elif opcode == OPCODE_TEXT:
             opcode_handler = self.server._message_received_
         elif opcode == OPCODE_PING:
