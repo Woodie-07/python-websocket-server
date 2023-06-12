@@ -98,6 +98,9 @@ class API():
     def shutdown_abruptly(self):
         self._shutdown_abruptly()
 
+    def disconnect_client(self, client, status=CLOSE_STATUS_NORMAL, reason=DEFAULT_CLOSE_REASON):
+        self._disconnect_client(client, status, reason)
+
     def disconnect_clients_gracefully(self, status=CLOSE_STATUS_NORMAL, reason=DEFAULT_CLOSE_REASON):
         self._disconnect_clients_gracefully(status, reason)
 
@@ -241,6 +244,13 @@ class WebsocketServer(ThreadingMixIn, TCPServer, API):
         self._disconnect_clients_abruptly()
         self.server_close()
         self.shutdown()
+
+    def _disconnect_client(self, client, status=CLOSE_STATUS_NORMAL, reason=DEFAULT_CLOSE_REASON):
+        """
+        Terminate a client gracefully without shutting down the server
+        """
+        client["handler"].send_close(status, reason)
+        self._terminate_client_handler(client["handler"])
 
     def _disconnect_clients_gracefully(self, status=CLOSE_STATUS_NORMAL, reason=DEFAULT_CLOSE_REASON):
         """
